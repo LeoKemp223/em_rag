@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+data/chroma_db/
+data/fts.db
+data/documents/*.pdf
+data/documents/*.PDF
+models/
+*.onnx
+.cache/
+.claude/

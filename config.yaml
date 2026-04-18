@@ -1,0 +1,30 @@
+# config.yaml
+embedding:
+  provider: "local"                              # "local" | "openai" | "zhipu"
+  local_model: "all-MiniLM-L6-v2"                # ONNX 格式
+  model_dir: "./models"
+  # openai_api_key: ""
+  # openai_model: "text-embedding-3-small"
+
+parsing:
+  table_strategy: "pdfplumber"
+  use_bookmarks: true
+  fallback_to_markdown_headings: true
+
+chunking:
+  max_tokens: 1000
+  overlap_tokens: 100
+  keep_tables_intact: true
+  split_at_semantic_boundary: true
+
+storage:
+  chroma_path: "./data/chroma_db"
+  fts_path: "./data/fts.db"
+
+documents:
+  source_dir: "./data/documents"
+
+retrieval:
+  top_k: 5
+  keyword_priority: true
+  context_expand: false

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "em-rag": {
+      "command": "python3",
+      "args": ["-m", "src.mcp_server"],
+      "cwd": "/home/xiaozhi/work/em_rag"
+    }
+  }
+}

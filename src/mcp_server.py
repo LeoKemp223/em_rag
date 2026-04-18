@@ -1,0 +1,200 @@
+"""MCP Server：暴露 RAG 工具给 Claude Code"""
+
+import json
+import sys
+from pathlib import Path
+
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, TextContent
+
+
+app = Server("em-rag")
+
+_config = None
+_classifier = None
+_chunker = None
+_embedder = None
+_vector_store = None
+_fts_store = None
+_retriever = None
+_initialized = False
+
+
+def _ensure_init():
+    global _config, _classifier, _chunker, _embedder
+    global _vector_store, _fts_store, _retriever, _initialized
+
+    if _initialized:
+        return
+
+    from src.config import load_config
+    from src.parsers import create_parser
+    from src.element_classifier import ElementClassifier
+    from src.chunker import Chunker
+    from src.embedder import create_embedder
+    from src.store import VectorStore, FTSStore
+    from src.retriever import Retriever
+
+    _config = load_config()
+    _classifier = ElementClassifier()
+    _chunker = Chunker(_config.chunking)
+    _embedder = create_embedder(_config.embedding)
+    _vector_store = VectorStore(_config.storage)
+    _fts_store = FTSStore(_config.storage)
+    _retriever = Retriever(_config.retrieval, _embedder, _vector_store, _fts_store)
+    _initialized = True
+
+
+@app.list_tools()
+async def list_tools() -> list[Tool]:
+    return [
+        Tool(
+            name="search_docs",
+            description="搜索已索引的技术文档。支持寄存器名精确查询和语义查询。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "搜索内容，如 'SPI_CR1 寄存器位域' 或 'GPIO 初始化步骤'",
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "返回结果数量",
+                        "default": 5,
+                    },
+                    "doc_filter": {
+                        "type": "string",
+                        "description": "限定搜索的文档 ID（可选）",
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+        Tool(
+            name="list_docs",
+            description="列出所有已索引的文档",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="index_doc",
+            description="索引新文档到 RAG 系统",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "文档文件路径或 URL",
+                    },
+                },
+                "required": ["path"],
+            },
+        ),
+        Tool(
+            name="remove_doc",
+            description="从索引中移除文档",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "doc_id": {
+                        "type": "string",
+                        "description": "文档 ID",
+                    },
+                },
+                "required": ["doc_id"],
+            },
+        ),
+    ]
+
+
+@app.call_tool()
+async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+    if name == "search_docs":
+        return await _handle_search(arguments)
+    elif name == "list_docs":
+        return await _handle_list()
+    elif name == "index_doc":
+        return await _handle_index(arguments)
+    elif name == "remove_doc":
+        return await _handle_remove(arguments)
+    else:
+        return [TextContent(type="text", text=f"未知工具: {name}")]
+
+
+async def _handle_search(args: dict) -> list[TextContent]:
+    _ensure_init()
+    query = args["query"]
+    top_k = args.get("top_k", 5)
+    doc_filter = args.get("doc_filter")
+
+    results = _retriever.search(query, top_k=top_k, doc_filter=doc_filter)
+
+    if not results:
+        return [TextContent(type="text", text="未找到相关文档内容。")]
+
+    output_parts = []
+    for i, r in enumerate(results, 1):
+        header = f"[{i}] {r.context_chain} (p.{r.page + 1}, {r.element_type}, {r.source})"
+        output_parts.append(f"{header}\n{r.content}")
+
+    return [TextContent(type="text", text="\n\n---\n\n".join(output_parts))]
+
+
+async def _handle_list() -> list[TextContent]:
+    _ensure_init()
+    docs = _vector_store.list_docs()
+    if not docs:
+        return [TextContent(type="text", text="暂无已索引文档。")]
+    return [TextContent(type="text", text="已索引文档:\n" + "\n".join(f"  - {d}" for d in docs))]
+
+
+async def _handle_index(args: dict) -> list[TextContent]:
+    _ensure_init()
+    path = args["path"]
+    is_url = path.startswith(("http://", "https://"))
+
+    if not is_url and not Path(path).exists():
+        return [TextContent(type="text", text=f"文件不存在: {path}")]
+
+    if is_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(path)
+        doc_id = (parsed.netloc + parsed.path).strip("/").replace("/", "_").lower()
+    else:
+        doc_id = Path(path).stem.lower().replace(" ", "_")
+
+    from src.parsers import create_parser
+    parser = create_parser(path)
+    elements = parser.parse(path)
+    elements = _classifier.classify(elements)
+    chunks = _chunker.chunk(elements)
+
+    texts = [c.content for c in chunks]
+    embeddings = _embedder.embed(texts)
+
+    _vector_store.add_chunks(chunks, embeddings, doc_id)
+    _fts_store.add_chunks(chunks, doc_id)
+
+    return [TextContent(
+        type="text",
+        text=f"索引完成: {path}\n  文档ID: {doc_id}\n  chunks: {len(chunks)}",
+    )]
+
+
+async def _handle_remove(args: dict) -> list[TextContent]:
+    _ensure_init()
+    doc_id = args["doc_id"]
+    _vector_store.remove_doc(doc_id)
+    _fts_store.remove_doc(doc_id)
+    return [TextContent(type="text", text=f"已移除文档: {doc_id}")]
+
+
+async def main():
+    async with stdio_server() as (read_stream, write_stream):
+        await app.run(read_stream, write_stream, app.create_initialization_options())
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
