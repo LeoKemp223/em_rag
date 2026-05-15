@@ -6,15 +6,15 @@ import time
 from pathlib import Path
 
 from src.config import load_config
-from src.parsers import create_parser
-from src.element_classifier import ElementClassifier
-from src.chunker import Chunker
-from src.embedder import create_embedder
-from src.store import VectorStore, FTSStore
-from src.retriever import Retriever
 
 
 def cmd_index(args, config):
+    from src.parsers import create_parser
+    from src.element_classifier import ElementClassifier
+    from src.chunker import Chunker
+    from src.embedder import create_embedder
+    from src.store import VectorStore, FTSStore
+
     path = args.path
     is_url = path.startswith(("http://", "https://"))
 
@@ -77,6 +77,10 @@ def cmd_index(args, config):
 
 
 def cmd_search(args, config):
+    from src.embedder import create_embedder
+    from src.store import VectorStore, FTSStore
+    from src.retriever import Retriever
+
     embedder = create_embedder(config.embedding)
     vector_store = VectorStore(config.storage)
     fts_store = FTSStore(config.storage)
@@ -108,6 +112,8 @@ def cmd_search(args, config):
 
 
 def cmd_list(args, config):
+    from src.store import VectorStore
+
     vector_store = VectorStore(config.storage)
     docs = vector_store.list_docs()
     if not docs:
@@ -119,6 +125,8 @@ def cmd_list(args, config):
 
 
 def cmd_remove(args, config):
+    from src.store import VectorStore, FTSStore
+
     doc_id = args.doc_id
     vector_store = VectorStore(config.storage)
     fts_store = FTSStore(config.storage)

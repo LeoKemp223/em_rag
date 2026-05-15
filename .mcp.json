@@ -2,8 +2,8 @@
   "mcpServers": {
     "em-rag": {
       "command": "python3",
-      "args": ["-m", "src.mcp_server"],
-      "cwd": "/home/xiaozhi/work/em_rag"
+      "args": ["-m", "em_rag.mcp_server"],
+      "cwd": "/home/leo/work/open-git/em_rag-fix"
     }
   }
 }

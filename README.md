@@ -62,6 +62,7 @@ em_rag/
 │   ├── retriever.py           # 向量 + 关键词双路检索
 │   ├── mcp_server.py          # MCP Server
 │   └── cli.py                 # CLI 入口
+├── em_rag/                    # python -m em_rag 公开入口
 ├── models/                    # ONNX 模型文件（gitignored）
 ├── scripts/
 │   └── download_model.py      # 模型下载脚本
@@ -122,7 +123,7 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
   "mcpServers": {
     "em-rag": {
       "command": "python3",
-      "args": ["-m", "src.mcp_server"],
+      "args": ["-m", "em_rag.mcp_server"],
       "cwd": "/path/to/em_rag"
     }
   }
@@ -138,7 +139,7 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
 任何支持 stdio 传输的 MCP 客户端均可接入，启动命令：
 
 ```bash
-python3 -m src.mcp_server
+python3 -m em_rag.mcp_server
 ```
 
 提供的 MCP 工具：
@@ -177,6 +178,7 @@ retrieval:
 - chromadb — 向量存储
 - onnxruntime — ONNX 推理引擎（CPU）
 - tokenizers — HuggingFace tokenizer
+- huggingface_hub — 下载本地 embedding 模型
 - mcp — MCP SDK
 
 多格式支持：
