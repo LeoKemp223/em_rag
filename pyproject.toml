@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "Embedded documentation RAG MCP server"
 requires-python = ">=3.11"
 
+[project.scripts]
+em-rag = "src.cli:main"
+em-rag-mcp = "em_rag.mcp_auto:run"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["em_rag*", "src*"]

@@ -3,9 +3,13 @@
 from src.mcp_server import configure, main, parse_args
 
 
-if __name__ == "__main__":
+def run():
     import asyncio
 
     args = parse_args()
     configure(args.config, args.project_root)
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    run()

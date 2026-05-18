@@ -5,7 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-from src.config import load_config
+from src.config import default_model_dir, load_config
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".md", ".h", ".c", ".s", ".txt", ".docx", ".epub"}
@@ -17,7 +17,7 @@ def _repo_root() -> Path:
 
 
 def _default_model_dir() -> str:
-    return str((_repo_root() / "models").resolve())
+    return str(default_model_dir().resolve())
 
 
 def index_path(path: str, config) -> tuple[str, int]:
@@ -246,8 +246,8 @@ def cmd_init(args, _config):
             print(f"已写入: {mcp_path}")
 
     print("\n初始化完成。下一步:")
-    print("  python -m em_rag --config .em_rag/config.yaml add ./docs")
-    print("  python -m em_rag --config .em_rag/config.yaml doctor")
+    print("  python -m em_rag add ./docs")
+    print("  python -m em_rag doctor")
 
 
 def cmd_mcp(args, _config):
@@ -272,6 +272,67 @@ def cmd_mcp(args, _config):
     print(f"已写入: {mcp_path}")
 
 
+def cmd_repair(args, _config):
+    project_root = Path(args.project_root).expanduser().resolve()
+    rag_dir = project_root / ".em_rag"
+    config_path = rag_dir / "config.yaml"
+
+    if not config_path.exists():
+        print(f"配置文件不存在: {config_path}")
+        print("请先运行: python -m em_rag init")
+        sys.exit(1)
+
+    text = config_path.read_text(encoding="utf-8")
+    repaired = _repair_project_config(text)
+    if repaired != text:
+        config_path.write_text(repaired, encoding="utf-8")
+        print(f"已修复: {config_path}")
+    else:
+        print(f"无需修复: {config_path}")
+
+    if not args.no_mcp:
+        mcp_path = project_root / ".mcp.json"
+        mcp_path.write_text(
+            _mcp_config_template(project_root, config_path),
+            encoding="utf-8",
+        )
+        print(f"已写入: {mcp_path}")
+
+    print("\n修复完成。建议执行:")
+    print("  python -m em_rag doctor")
+
+
+def _repair_project_config(text: str) -> str:
+    lines = text.splitlines()
+    repaired = []
+    for line in lines:
+        stripped = line.lstrip()
+        indent = line[: len(line) - len(stripped)]
+        if stripped.startswith("model_dir:"):
+            repaired.append(f'{indent}model_dir: "auto"')
+        else:
+            repaired.append(line)
+
+    if not any(line.lstrip().startswith("model_dir:") for line in lines):
+        out = []
+        inserted = False
+        in_embedding = False
+        for line in repaired:
+            out.append(line)
+            if line.strip() == "embedding:":
+                in_embedding = True
+                continue
+            if in_embedding and line.startswith("  local_model:"):
+                out.append('  model_dir: "auto"')
+                inserted = True
+                in_embedding = False
+        repaired = out
+        if not inserted:
+            repaired = ['embedding:', '  model_dir: "auto"', *repaired]
+
+    return "\n".join(repaired) + ("\n" if text.endswith("\n") else "")
+
+
 def _mcp_config_path(config_arg: str, project_root: Path) -> Path:
     if config_arg == "config.yaml":
         return (project_root / DEFAULT_PROJECT_CONFIG).resolve()
@@ -285,7 +346,7 @@ def _project_config_template() -> str:
     return f"""embedding:
   provider: "local"
   local_model: "all-MiniLM-L6-v2"
-  model_dir: "{_default_model_dir()}"
+  model_dir: "auto"
 
 storage:
   chroma_path: "chroma_db"
@@ -313,16 +374,12 @@ def _mcp_config_template(project_root: Path, config_path: Path) -> str:
     payload = {
         "mcpServers": {
             "em-rag": {
-                "command": str(_repo_root() / ".venv/bin/python"),
+                "command": sys.executable,
                 "args": [
                     "-m",
-                    "em_rag.mcp_server",
-                    "--config",
-                    str(config_path),
-                    "--project-root",
-                    str(project_root),
+                    "em_rag.mcp_auto",
                 ],
-                "cwd": str(_repo_root()),
+                "cwd": str(project_root),
             }
         }
     }
@@ -373,6 +430,10 @@ def main():
     p_mcp.add_argument("--project-root", default=".", help="业务工程根目录")
     p_mcp.add_argument("--force", action="store_true", help="覆盖已有 .mcp.json")
 
+    p_repair = sub.add_parser("repair", help="修复当前工程的便携式配置")
+    p_repair.add_argument("--project-root", default=".", help="业务工程根目录")
+    p_repair.add_argument("--no-mcp", action="store_true", help="不重写 .mcp.json")
+
     p_add = sub.add_parser("add", help="索引文件或递归索引目录")
     p_add.add_argument("path", help="文档文件、目录或 URL")
 
@@ -406,6 +467,8 @@ def main():
         cmd_init(args, config)
     elif args.command == "mcp":
         cmd_mcp(args, config)
+    elif args.command == "repair":
+        cmd_repair(args, config)
     elif args.command == "add":
         cmd_add(args, config)
     elif args.command == "index":

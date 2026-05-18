@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config import load_config
+from src.config import default_model_dir, load_config
 
 
 def test_load_config_resolves_project_paths_relative_to_config(tmp_path):
@@ -31,3 +31,8 @@ documents:
     assert config.figures.output_dir == str((rag_dir / "figures").resolve())
     assert config.documents.source_dir == str((rag_dir / "../docs").resolve())
 
+
+def test_load_config_resolves_auto_model_dir_to_installation():
+    config = load_config("__missing_config_for_test__.yaml")
+
+    assert config.embedding.model_dir == str(default_model_dir())

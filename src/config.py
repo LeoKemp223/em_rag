@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 import yaml
 
@@ -7,7 +8,7 @@ import yaml
 class EmbeddingConfig:
     provider: str = "local"
     local_model: str = "all-MiniLM-L6-v2"
-    model_dir: str = "./models"
+    model_dir: str = "auto"
     openai_api_key: str = ""
     openai_model: str = "text-embedding-3-small"
 
@@ -76,7 +77,10 @@ class Config:
 def load_config(config_path: str = "config.yaml") -> Config:
     path = Path(config_path)
     if not path.exists():
-        return Config()
+        config = Config()
+        _resolve_project_paths(config, Path.cwd())
+        _resolve_embedding_paths(config, Path.cwd())
+        return config
 
     with open(path) as f:
         data = yaml.safe_load(f) or {}
@@ -98,6 +102,7 @@ def load_config(config_path: str = "config.yaml") -> Config:
         config.retrieval = RetrievalConfig(**data["retrieval"])
 
     _resolve_project_paths(config, path.parent)
+    _resolve_embedding_paths(config, path.parent)
     return config
 
 
@@ -107,6 +112,23 @@ def _resolve_project_paths(config: Config, base_dir: Path):
     config.storage.fts_path = _resolve_path(config.storage.fts_path, base_dir)
     config.figures.output_dir = _resolve_path(config.figures.output_dir, base_dir)
     config.documents.source_dir = _resolve_path(config.documents.source_dir, base_dir)
+
+
+def _resolve_embedding_paths(config: Config, base_dir: Path):
+    """Resolve model_dir while keeping project configs portable across machines."""
+    value = config.embedding.model_dir
+    if value == "auto":
+        env_dir = os.environ.get("EM_RAG_MODEL_DIR")
+        config.embedding.model_dir = (
+            str(Path(env_dir).expanduser().resolve()) if env_dir else str(default_model_dir())
+        )
+        return
+
+    config.embedding.model_dir = _resolve_path(value, base_dir)
+
+
+def default_model_dir() -> Path:
+    return Path(__file__).resolve().parent.parent / "models"
 
 
 def _resolve_path(value: str, base_dir: Path) -> str:

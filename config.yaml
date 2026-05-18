@@ -2,7 +2,7 @@
 embedding:
   provider: "local"                              # "local" | "openai"
   local_model: "all-MiniLM-L6-v2"                # ONNX 格式
-  model_dir: "./models"
+  model_dir: "auto"
   # openai_api_key: ""
   # openai_model: "text-embedding-3-small"
 

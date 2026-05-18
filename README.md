@@ -82,7 +82,12 @@ em_rag/
 
 ## 安装
 
+需要 Python 3.11 或更高版本。下面命令里的 `python` 应指向 Python 3.11+；
+如果系统默认版本较旧，请改用 `python3.11`。
+
 ```bash
+python -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 python scripts/download_model.py
@@ -103,9 +108,9 @@ python examples/demo.py
 在业务工程目录执行：
 
 ```bash
-/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag init
-/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag add ./docs
-/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag doctor
+python -m em_rag init
+python -m em_rag add ./docs
+python -m em_rag doctor
 ```
 
 这会自动生成：
@@ -133,6 +138,13 @@ python -m em_rag init --force
 python -m em_rag mcp --force
 ```
 
+如果工程是从另一台电脑拷贝过来的，先执行一次修复：
+
+```bash
+python -m em_rag repair
+python -m em_rag doctor
+```
+
 ### 常用命令
 
 ```bash
@@ -157,6 +169,9 @@ python -m em_rag add ./docs
 # 生成或更新 .mcp.json
 python -m em_rag mcp --force
 
+# 修复旧工程或跨电脑迁移后的路径
+python -m em_rag repair
+
 # 检查当前工程 RAG 环境
 python -m em_rag doctor
 ```
@@ -173,9 +188,9 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
 {
   "mcpServers": {
     "em-rag": {
-      "command": "python3",
-      "args": ["-m", "em_rag.mcp_server"],
-      "cwd": "/path/to/em_rag"
+      "command": "/path/to/em_rag/.venv/bin/python",
+      "args": ["-m", "em_rag.mcp_auto"],
+      "cwd": "/path/to/your-project"
     }
   }
 }
@@ -190,7 +205,7 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
 任何支持 stdio 传输的 MCP 客户端均可接入，启动命令：
 
 ```bash
-python3 -m em_rag.mcp_server
+python -m em_rag.mcp_auto
 ```
 
 ### 多工程隔离
@@ -217,7 +232,7 @@ your-project/
 embedding:
   provider: "local"
   local_model: "all-MiniLM-L6-v2"
-  model_dir: "/home/leo/work/open-git/em_rag/models"
+  model_dir: "auto"
 
 storage:
   chroma_path: "chroma_db"
@@ -243,23 +258,20 @@ retrieval:
 {
   "mcpServers": {
     "em-rag": {
-      "command": "/home/leo/work/open-git/em_rag/.venv/bin/python",
+      "command": "/path/to/em_rag/.venv/bin/python",
       "args": [
         "-m",
-        "em_rag.mcp_server",
-        "--config",
-        "/path/to/your-project/.em_rag/config.yaml",
-        "--project-root",
-        "/path/to/your-project"
+        "em_rag.mcp_auto"
       ],
-      "cwd": "/home/leo/work/open-git/em_rag"
+      "cwd": "/path/to/your-project"
     }
   }
 }
 ```
 
-`cwd` 建议保持为 `em_rag` 仓库目录；`--project-root` 用于让 MCP 工具
-`index_doc` 的相对路径按业务工程解析。
+`cwd` 指向业务工程根目录，`mcp_auto` 会自动发现该工程的
+`.em_rag/config.yaml`。`.mcp.json` 可通过 `python -m em_rag mcp --force`
+生成，不需要手写。
 
 ### Codex 全局自动识别工程
 
@@ -267,7 +279,7 @@ retrieval:
 
 ```toml
 [mcp_servers.em-rag]
-command = "/home/leo/work/open-git/em_rag/.venv/bin/python"
+command = "/path/to/em_rag/.venv/bin/python"
 args = ["-m", "em_rag.mcp_auto"]
 ```
 
@@ -284,6 +296,35 @@ python -m em_rag add ./docs
 ```
 
 全局 Codex MCP 配置不用再改路径。
+
+### 换电脑迁移
+
+在新电脑上先安装一次 `em_rag` 并下载模型：
+
+```bash
+git clone <em_rag_repo>
+cd em_rag
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+python scripts/download_model.py
+```
+
+然后进入业务工程修复本地配置：
+
+```bash
+cd /path/to/your-project
+python -m em_rag repair
+python -m em_rag doctor
+```
+
+`repair` 会把旧的绝对 `model_dir` 改成 `auto`，并重新生成便携式
+`.mcp.json`。如果模型放在自定义目录，可以设置环境变量：
+
+```bash
+export EM_RAG_MODEL_DIR=/path/to/models
+```
 
 提供的 MCP 工具：
 - `search_docs` — 搜索已索引文档，支持寄存器名精确查询和语义查询

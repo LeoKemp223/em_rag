@@ -3,7 +3,11 @@
 from src.mcp_auto import main
 
 
-if __name__ == "__main__":
+def run():
     import asyncio
 
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    run()
