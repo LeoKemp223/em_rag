@@ -21,10 +21,25 @@ storage:
   chroma_path: "./data/chroma_db"
   fts_path: "./data/fts.db"
 
+figures:
+  enabled: true
+  mode: "timing_related"        # "timing_related" | "all"
+  detection: "heuristic"        # "heuristic" | "hybrid" | "llm"
+  save_full_page: true
+  save_crops: true
+  render_dpi: 180
+  output_dir: "./data/figures"
+  llm_provider: "openai"
+  llm_model: "gpt-4.1"          # 准确率优先；可改为更便宜的 mini 模型
+  # llm_api_key: ""             # 留空时读取 OPENAI_API_KEY
+  # llm_base_url: ""            # OpenAI-compatible endpoint，可选
+  min_confidence: 0.65
+  candidate_context_chars: 6000
+
 documents:
   source_dir: "./data/documents"
 
 retrieval:
   top_k: 5
   keyword_priority: true
-  context_expand: false
+  context_expand: true

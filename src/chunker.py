@@ -1,7 +1,9 @@
 """元素感知分块器：按元素类型和语义边界切分 chunk"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from src.parser import DocElement
+from src.parsers import DocElement
 from src.config import ChunkingConfig
 
 
@@ -17,6 +19,15 @@ class Chunk:
     @property
     def token_estimate(self) -> int:
         return len(self.content) // 3
+
+    @property
+    def retrieval_text(self) -> str:
+        """Text used for embedding and FTS indexing."""
+        parts = []
+        if self.context_chain:
+            parts.append(f"Context: {self.context_chain}")
+        parts.append(self.content)
+        return "\n\n".join(part for part in parts if part)
 
 
 class Chunker:
@@ -44,6 +55,20 @@ class Chunker:
                     chunks.extend(self._flush_text_buffer(text_buffer, current_context))
                     text_buffer = []
                 chunks.append(self._make_table_chunk(el))
+                continue
+
+            if el.type == "figure":
+                if text_buffer:
+                    chunks.extend(self._flush_text_buffer(text_buffer, current_context))
+                    text_buffer = []
+                image = self._image_metadata_from_element(el, current_context)
+                chunks.append(Chunk(
+                    content=self._figure_content(el, image),
+                    context_chain=el.context_chain or current_context,
+                    element_type="figure",
+                    page=el.page,
+                    metadata={**el.metadata.copy(), "related_images": [image] if image else []},
+                ))
                 continue
 
             if el.type == "code":
@@ -80,6 +105,8 @@ class Chunker:
 
         if text_buffer:
             chunks.extend(self._flush_text_buffer(text_buffer, current_context))
+
+        self._attach_related_images(chunks)
 
         # 提取关键词
         for chunk in chunks:
@@ -171,6 +198,136 @@ class Chunker:
             page=el.page,
             metadata=el.metadata.copy(),
         )
+
+    def _attach_related_images(self, chunks: list[Chunk]):
+        figures = []
+        for chunk in chunks:
+            if chunk.element_type != "figure":
+                continue
+            image = self._image_metadata(chunk)
+            if image:
+                figures.append((chunk, image))
+                chunk.metadata["related_images"] = [image]
+
+        if not figures:
+            return
+
+        for chunk in chunks:
+            if chunk.element_type == "figure":
+                continue
+            related = []
+            for figure_chunk, image in figures:
+                same_page = figure_chunk.page == chunk.page
+                nearby_same_context = (
+                    abs(figure_chunk.page - chunk.page) <= 1
+                    and bool(figure_chunk.context_chain)
+                    and figure_chunk.context_chain == chunk.context_chain
+                )
+                if same_page or nearby_same_context:
+                    related.append(image)
+            if related:
+                chunk.metadata["related_images"] = related
+
+    def _image_metadata(self, chunk: Chunk) -> dict:
+        if not chunk.metadata.get("image_path"):
+            return {}
+        if chunk.metadata.get("related_images"):
+            return chunk.metadata["related_images"][0]
+        return self._normalize_image_metadata(
+            chunk.metadata,
+            chunk.context_chain,
+            chunk.content,
+            chunk.page,
+        )
+
+    def _image_metadata_from_element(
+        self, element: DocElement, fallback_context: str
+    ) -> dict:
+        if not element.metadata.get("image_path"):
+            return {}
+        return self._normalize_image_metadata(
+            element.metadata,
+            element.context_chain or fallback_context,
+            element.content,
+            element.page,
+        )
+
+    def _normalize_image_metadata(
+        self, metadata: dict, context_chain: str, content: str, page: int
+    ) -> dict:
+        caption = metadata.get("caption", "")
+        signals = metadata.get("signals", [])
+        semantic_hints = metadata.get("semantic_hints", [])
+        reason = metadata.get("reason", "")
+        summary = metadata.get("summary") or self._build_figure_summary(
+            caption=caption,
+            context_chain=context_chain,
+            page=metadata.get("page", page),
+            asset_type=metadata.get("asset_type", "image"),
+            detection_method=metadata.get("detection_method", "heuristic"),
+            signals=signals,
+            semantic_hints=semantic_hints,
+            reason=reason,
+            content=content,
+        )
+        return {
+            "image_path": metadata.get("image_path"),
+            "page": metadata.get("page", page),
+            "bbox": metadata.get("bbox"),
+            "caption": caption,
+            "summary": summary,
+            "figure_type": metadata.get("figure_type", "timing_diagram"),
+            "asset_type": metadata.get("asset_type", "image"),
+            "detection_method": metadata.get("detection_method", "heuristic"),
+            "confidence": metadata.get("confidence", 1.0),
+            "reason": reason,
+            "signals": signals,
+            "semantic_hints": semantic_hints,
+        }
+
+    def _figure_content(self, element: DocElement, image: dict) -> str:
+        if not image:
+            return element.content
+        lines = [
+            "Figure summary:",
+            image.get("summary", element.content),
+            f"Image path: {image.get('image_path', '')}",
+        ]
+        if image.get("signals"):
+            lines.append("Signals: " + ", ".join(image["signals"]))
+        return "\n".join(line for line in lines if line)
+
+    def _build_figure_summary(
+        self,
+        caption: str,
+        context_chain: str,
+        page: int,
+        asset_type: str,
+        detection_method: str,
+        signals: list[str],
+        semantic_hints: list[str],
+        reason: str,
+        content: str,
+    ) -> str:
+        parts = [
+            "Timing diagram or waveform related figure",
+            f"page {page + 1}",
+        ]
+        if context_chain:
+            parts.append(f"in {context_chain}")
+        if caption:
+            parts.append(f"caption: {caption}")
+        if signals:
+            parts.append("signals: " + ", ".join(signals))
+        if semantic_hints:
+            parts.append("semantic hints: " + ", ".join(semantic_hints))
+        if reason:
+            parts.append(f"reason: {reason}")
+        parts.append(f"asset: {asset_type}")
+        parts.append(f"detection: {detection_method}")
+        if content and not content.lower().startswith("timing diagram image:"):
+            parts.append(content)
+        return ". ".join(parts)
 
     def _extract_keywords(self, text: str) -> list[str]:
         """提取寄存器名、外设名等关键词"""

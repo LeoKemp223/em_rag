@@ -14,6 +14,10 @@
 | Word | .docx | 硬件设计文档、接口协议说明 |
 | 电子书 | .epub | 嵌入式教材、协议规范 |
 
+PDF 索引会额外保存疑似时序图相关页面的图片资产：默认保存整页截图，并在可识别嵌入图片块时额外保存裁剪图，检索结果会返回关联图片路径供后续 LLM/VLM 使用。
+
+如果优先考虑准确率，可将 `figures.detection` 设为 `hybrid` 或 `llm`。`hybrid` 会先用宽松规则召回候选页，再让 LLM 判断是否确实与时序图/波形/开关特性有关；`llm` 会逐页判断，召回更充分但成本更高。
+
 ## 架构
 
 ```
@@ -164,6 +168,21 @@ parsing:
 chunking:
   max_tokens: 1000
   keep_tables_intact: true
+
+figures:
+  enabled: true                  # 保存疑似时序图图片资产
+  mode: "timing_related"         # "timing_related" | "all"
+  detection: "heuristic"         # "heuristic" | "hybrid" | "llm"
+  save_full_page: true           # 渲染整页，兜底矢量时序图
+  save_crops: true               # 尝试保存可识别图片块裁剪
+  render_dpi: 180
+  output_dir: "./data/figures"
+  llm_provider: "openai"
+  llm_model: "gpt-4.1"          # 准确率优先；可改为更便宜的 mini 模型
+  # llm_api_key: ""              # 留空时读取 OPENAI_API_KEY
+  # llm_base_url: ""             # OpenAI-compatible endpoint，可选
+  min_confidence: 0.65
+  candidate_context_chars: 6000
 
 retrieval:
   top_k: 5

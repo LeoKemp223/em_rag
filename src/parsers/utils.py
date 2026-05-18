@@ -1,5 +1,7 @@
 """解析器共享工具"""
 
+from __future__ import annotations
+
 
 def table_to_markdown(table: list[list]) -> str:
     if not table or len(table) < 2:

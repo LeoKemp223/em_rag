@@ -65,10 +65,10 @@ def main():
         print(f"\n临时目录已清理: {tmpdir}")
 
 
-def _index_file(path, classifier, chunker, embedder, vector_store, fts_store):
+def _index_file(path, config, classifier, chunker, embedder, vector_store, fts_store):
     from src.parsers import create_parser
 
-    parser = create_parser(str(path))
+    parser = create_parser(str(path), config.figures)
     doc_id = path.stem.lower().replace(" ", "_")
 
     elements = parser.parse(str(path))
@@ -103,6 +103,7 @@ def _run_demo(tmpdir: str):
     config = load_config()
     config.storage.chroma_path = f"{tmpdir}/chroma_db"
     config.storage.fts_path = f"{tmpdir}/fts.db"
+    config.figures.output_dir = f"{tmpdir}/figures"
 
     classifier = ElementClassifier()
     chunker = Chunker(config.chunking)
@@ -115,7 +116,7 @@ def _run_demo(tmpdir: str):
     total_chunks = 0
     for path in SAMPLE_FILES:
         total_chunks += _index_file(
-            path, classifier, chunker, embedder, vector_store, fts_store
+            path, config, classifier, chunker, embedder, vector_store, fts_store
         )
         print()
 

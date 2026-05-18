@@ -136,7 +136,30 @@ async def _handle_search(args: dict) -> list[TextContent]:
     output_parts = []
     for i, r in enumerate(results, 1):
         header = f"[{i}] {r.context_chain} (p.{r.page + 1}, {r.element_type}, {r.source})"
-        output_parts.append(f"{header}\n{r.content}")
+        image_lines = []
+        if r.related_images:
+            image_lines.append("\nRelated images:")
+            for image in r.related_images:
+                asset = image.get("asset_type", "image")
+                confidence = image.get("confidence")
+                suffix = f" conf={confidence:.2f}" if isinstance(confidence, (int, float)) else ""
+                image_lines.append(f"- [{asset}] {image.get('image_path')}{suffix}")
+                if image.get("summary"):
+                    image_lines.append(f"  summary: {image['summary']}")
+        images_text = "\n".join(image_lines)
+        expanded_lines = []
+        if r.expanded_context:
+            expanded_lines.append("\nExpanded context:")
+            for ctx in r.expanded_context[:3]:
+                preview = ctx["content"]
+                if len(preview) > 500:
+                    preview = preview[:500] + "\n... (truncated)"
+                expanded_lines.append(
+                    f"- p.{ctx['page'] + 1} {ctx['element_type']} "
+                    f"{ctx['context_chain']}\n{preview}"
+                )
+        expanded_text = "\n".join(expanded_lines)
+        output_parts.append(f"{header}\n{r.content}{images_text}{expanded_text}")
 
     return [TextContent(type="text", text="\n\n---\n\n".join(output_parts))]
 
@@ -165,12 +188,12 @@ async def _handle_index(args: dict) -> list[TextContent]:
         doc_id = Path(path).stem.lower().replace(" ", "_")
 
     from src.parsers import create_parser
-    parser = create_parser(path)
+    parser = create_parser(path, _config.figures)
     elements = parser.parse(path)
     elements = _classifier.classify(elements)
     chunks = _chunker.chunk(elements)
 
-    texts = [c.content for c in chunks]
+    texts = [c.retrieval_text for c in chunks]
     embeddings = _embedder.embed(texts)
 
     _vector_store.add_chunks(chunks, embeddings, doc_id)

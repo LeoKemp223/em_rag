@@ -34,6 +34,23 @@ class StorageConfig:
 
 
 @dataclass
+class FiguresConfig:
+    enabled: bool = True
+    mode: str = "timing_related"
+    detection: str = "heuristic"
+    save_full_page: bool = True
+    save_crops: bool = True
+    render_dpi: int = 180
+    output_dir: str = "./data/figures"
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-4.1"
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    min_confidence: float = 0.65
+    candidate_context_chars: int = 6000
+
+
+@dataclass
 class DocumentsConfig:
     source_dir: str = "./data/documents"
 
@@ -51,6 +68,7 @@ class Config:
     parsing: ParsingConfig = field(default_factory=ParsingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    figures: FiguresConfig = field(default_factory=FiguresConfig)
     documents: DocumentsConfig = field(default_factory=DocumentsConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
 
@@ -72,6 +90,8 @@ def load_config(config_path: str = "config.yaml") -> Config:
         config.chunking = ChunkingConfig(**data["chunking"])
     if "storage" in data:
         config.storage = StorageConfig(**data["storage"])
+    if "figures" in data:
+        config.figures = FiguresConfig(**data["figures"])
     if "documents" in data:
         config.documents = DocumentsConfig(**data["documents"])
     if "retrieval" in data:

@@ -1,7 +1,9 @@
 """元素分类器：对 DocParser 输出的元素做二次分类和 context_chain 增强"""
 
+from __future__ import annotations
+
 import re
-from src.parser import DocElement
+from src.parsers import DocElement
 
 
 class ElementClassifier:

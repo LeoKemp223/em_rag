@@ -35,7 +35,7 @@ def cmd_index(args, config):
     t0 = time.time()
 
     print("  [1/5] 解析文档...")
-    parser = create_parser(path)
+    parser = create_parser(path, config.figures)
     elements = parser.parse(path)
     print(f"         提取 {len(elements)} 个元素")
 
@@ -54,7 +54,7 @@ def cmd_index(args, config):
 
     print("  [4/5] Embedding...")
     embedder = create_embedder(config.embedding)
-    texts = [c.content for c in chunks]
+    texts = [c.retrieval_text for c in chunks]
     # 分批处理，避免内存溢出
     batch_size = 64
     embeddings = []
@@ -101,12 +101,29 @@ def cmd_search(args, config):
         print(f"[{i}] {r.context_chain}")
         print(f"    文档: {r.doc_id} | 页: {r.page + 1} | 类型: {r.element_type} | 来源: {r.source}")
         print(f"    得分: {r.score:.3f}")
+        if r.related_images:
+            print("    关联图片:")
+            for image in r.related_images:
+                asset = image.get("asset_type", "image")
+                confidence = image.get("confidence")
+                suffix = f" conf={confidence:.2f}" if isinstance(confidence, (int, float)) else ""
+                print(f"      - [{asset}] {image.get('image_path')}{suffix}")
+                if image.get("summary"):
+                    print(f"        {image['summary'][:240]}")
         print(f"{'─'*60}")
         # 截断过长内容
         content = r.content
         if len(content) > 500:
             content = content[:500] + "\n... (截断)"
         print(content)
+        if r.expanded_context:
+            print("\n    扩展上下文:")
+            for ctx in r.expanded_context[:3]:
+                preview = ctx["content"][:180].replace("\n", " ")
+                print(
+                    f"      - p.{ctx['page'] + 1} {ctx['element_type']} "
+                    f"{ctx['context_chain']}: {preview}"
+                )
 
     fts_store.close()
 

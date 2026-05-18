@@ -1,5 +1,7 @@
 """多格式文档解析器"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,14 +28,17 @@ EXTENSION_MAP = {
 }
 
 
-def _load_parser(ref: str):
+def _load_parser(ref: str, config=None):
     module_path, class_name = ref.rsplit(":", 1)
     import importlib
     mod = importlib.import_module(module_path)
-    return getattr(mod, class_name)()
+    parser_cls = getattr(mod, class_name)
+    if config is not None and class_name == "PdfParser":
+        return parser_cls(config)
+    return parser_cls()
 
 
-def create_parser(path_or_url: str):
+def create_parser(path_or_url: str, config=None):
     if path_or_url.startswith(("http://", "https://")):
         from .web_parser import WebParser
         return WebParser()
@@ -43,4 +48,4 @@ def create_parser(path_or_url: str):
     if not ref:
         supported = ", ".join(sorted(EXTENSION_MAP.keys()))
         raise ValueError(f"不支持的格式: {suffix}（支持: {supported}, URL）")
-    return _load_parser(ref)
+    return _load_parser(ref, config)
