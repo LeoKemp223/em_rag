@@ -84,6 +84,7 @@ em_rag/
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 python scripts/download_model.py
 ```
 
@@ -96,6 +97,43 @@ python examples/demo.py
 自带示例文档，无需额外文件，演示完整的 解析 → 分类 → 分块 → 向量化 → 存储 → 搜索 流程。
 
 ## 使用
+
+### 小白快速接入工程
+
+在业务工程目录执行：
+
+```bash
+/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag init
+/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag add ./docs
+/home/leo/work/open-git/em_rag/.venv/bin/python -m em_rag doctor
+```
+
+这会自动生成：
+
+```text
+your-project/
+├── .em_rag/
+│   ├── config.yaml
+│   └── .gitignore
+└── .mcp.json
+```
+
+然后重启支持 MCP 的 LLM 客户端即可。`add` 可以接收单个文件、URL 或目录；
+传目录时会递归索引支持的文档格式。
+
+如果需要覆盖已存在配置：
+
+```bash
+python -m em_rag init --force
+```
+
+如果只需要重新生成 MCP 配置：
+
+```bash
+python -m em_rag mcp --force
+```
+
+### 常用命令
 
 ```bash
 # 索引各种格式的文档
@@ -112,6 +150,15 @@ python -m em_rag list
 
 # 删除文档
 python -m em_rag remove <doc_id>
+
+# 递归索引目录
+python -m em_rag add ./docs
+
+# 生成或更新 .mcp.json
+python -m em_rag mcp --force
+
+# 检查当前工程 RAG 环境
+python -m em_rag doctor
 ```
 
 ## MCP 集成
@@ -213,6 +260,30 @@ retrieval:
 
 `cwd` 建议保持为 `em_rag` 仓库目录；`--project-root` 用于让 MCP 工具
 `index_doc` 的相对路径按业务工程解析。
+
+### Codex 全局自动识别工程
+
+如果 Codex 使用全局 `~/.codex/config.toml`，建议只配置一次自动入口：
+
+```toml
+[mcp_servers.em-rag]
+command = "/home/leo/work/open-git/em_rag/.venv/bin/python"
+args = ["-m", "em_rag.mcp_auto"]
+```
+
+`mcp_auto` 会从当前工作目录向上查找 `.em_rag/config.yaml`：
+
+- 找到后使用该配置，并把所在目录作为 `project-root`
+- 找不到则回退到 `em_rag` 仓库默认 `config.yaml`
+
+这样新工程只需要运行：
+
+```bash
+python -m em_rag init
+python -m em_rag add ./docs
+```
+
+全局 Codex MCP 配置不用再改路径。
 
 提供的 MCP 工具：
 - `search_docs` — 搜索已索引文档，支持寄存器名精确查询和语义查询

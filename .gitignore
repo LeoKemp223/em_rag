@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 data/chroma_db/
 data/fts.db
