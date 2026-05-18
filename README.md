@@ -146,6 +146,74 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
 python3 -m em_rag.mcp_server
 ```
 
+### 多工程隔离
+
+如果多个业务工程使用不同文档，建议每个工程维护自己的 `.em_rag/config.yaml`
+和索引库，`em_rag` 程序和模型只保留一份。
+
+业务工程结构示例：
+
+```text
+your-project/
+├── .em_rag/
+│   ├── config.yaml
+│   ├── chroma_db/
+│   ├── fts.db
+│   └── figures/
+├── docs/
+└── .mcp.json
+```
+
+`.em_rag/config.yaml` 示例：
+
+```yaml
+embedding:
+  provider: "local"
+  local_model: "all-MiniLM-L6-v2"
+  model_dir: "/home/leo/work/open-git/em_rag/models"
+
+storage:
+  chroma_path: "chroma_db"
+  fts_path: "fts.db"
+
+figures:
+  enabled: true
+  output_dir: "figures"
+
+retrieval:
+  top_k: 5
+  keyword_priority: true
+  context_expand: true
+```
+
+`storage.*`、`figures.output_dir` 和 `documents.source_dir` 的相对路径会按
+配置文件所在目录解析。上例会写入 `your-project/.em_rag/chroma_db`、
+`your-project/.em_rag/fts.db` 和 `your-project/.em_rag/figures`。
+
+业务工程 `.mcp.json` 示例：
+
+```json
+{
+  "mcpServers": {
+    "em-rag": {
+      "command": "/home/leo/work/open-git/em_rag/.venv/bin/python",
+      "args": [
+        "-m",
+        "em_rag.mcp_server",
+        "--config",
+        "/path/to/your-project/.em_rag/config.yaml",
+        "--project-root",
+        "/path/to/your-project"
+      ],
+      "cwd": "/home/leo/work/open-git/em_rag"
+    }
+  }
+}
+```
+
+`cwd` 建议保持为 `em_rag` 仓库目录；`--project-root` 用于让 MCP 工具
+`index_doc` 的相对路径按业务工程解析。
+
 提供的 MCP 工具：
 - `search_docs` — 搜索已索引文档，支持寄存器名精确查询和语义查询
 - `list_docs` — 列出所有已索引文档

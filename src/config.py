@@ -97,4 +97,20 @@ def load_config(config_path: str = "config.yaml") -> Config:
     if "retrieval" in data:
         config.retrieval = RetrievalConfig(**data["retrieval"])
 
+    _resolve_project_paths(config, path.parent)
     return config
+
+
+def _resolve_project_paths(config: Config, base_dir: Path):
+    """Resolve project-local paths relative to the config file directory."""
+    config.storage.chroma_path = _resolve_path(config.storage.chroma_path, base_dir)
+    config.storage.fts_path = _resolve_path(config.storage.fts_path, base_dir)
+    config.figures.output_dir = _resolve_path(config.figures.output_dir, base_dir)
+    config.documents.source_dir = _resolve_path(config.documents.source_dir, base_dir)
+
+
+def _resolve_path(value: str, base_dir: Path) -> str:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return str(path)
+    return str((base_dir / path).resolve())

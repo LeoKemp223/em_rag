@@ -1,5 +1,6 @@
 """MCP Server：暴露 RAG 工具给 Claude Code"""
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -19,6 +20,17 @@ _vector_store = None
 _fts_store = None
 _retriever = None
 _initialized = False
+_config_path = "config.yaml"
+_project_root = Path.cwd()
+
+
+def configure(config_path: str = "config.yaml", project_root: str = None):
+    global _config_path, _project_root
+    _config_path = config_path
+    if project_root:
+        _project_root = Path(project_root).expanduser().resolve()
+    else:
+        _project_root = Path(config_path).expanduser().resolve().parent
 
 
 def _ensure_init():
@@ -36,7 +48,7 @@ def _ensure_init():
     from src.store import VectorStore, FTSStore
     from src.retriever import Retriever
 
-    _config = load_config()
+    _config = load_config(_config_path)
     _classifier = ElementClassifier()
     _chunker = Chunker(_config.chunking)
     _embedder = create_embedder(_config.embedding)
@@ -176,8 +188,9 @@ async def _handle_index(args: dict) -> list[TextContent]:
     _ensure_init()
     path = args["path"]
     is_url = path.startswith(("http://", "https://"))
+    resolved_path = path if is_url else _resolve_doc_path(path)
 
-    if not is_url and not Path(path).exists():
+    if not is_url and not Path(resolved_path).exists():
         return [TextContent(type="text", text=f"文件不存在: {path}")]
 
     if is_url:
@@ -185,11 +198,11 @@ async def _handle_index(args: dict) -> list[TextContent]:
         parsed = urlparse(path)
         doc_id = (parsed.netloc + parsed.path).strip("/").replace("/", "_").lower()
     else:
-        doc_id = Path(path).stem.lower().replace(" ", "_")
+        doc_id = Path(resolved_path).stem.lower().replace(" ", "_")
 
     from src.parsers import create_parser
-    parser = create_parser(path, _config.figures)
-    elements = parser.parse(path)
+    parser = create_parser(resolved_path, _config.figures)
+    elements = parser.parse(resolved_path)
     elements = _classifier.classify(elements)
     chunks = _chunker.chunk(elements)
 
@@ -218,6 +231,25 @@ async def main():
         await app.run(read_stream, write_stream, app.create_initialization_options())
 
 
+def _resolve_doc_path(path: str) -> str:
+    doc_path = Path(path).expanduser()
+    if doc_path.is_absolute():
+        return str(doc_path)
+    return str((_project_root / doc_path).resolve())
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="em_rag MCP server")
+    parser.add_argument("--config", default="config.yaml", help="配置文件路径")
+    parser.add_argument(
+        "--project-root",
+        help="业务工程根目录；index_doc 的相对路径按该目录解析",
+    )
+    return parser.parse_args(argv)
+
+
 if __name__ == "__main__":
     import asyncio
+    args = parse_args()
+    configure(args.config, args.project_root)
     asyncio.run(main())
