@@ -5,8 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sqlite3
+import sys
 from pathlib import Path
+
+try:
+    import pysqlite3 as sqlite3
+    sys.modules["sqlite3"] = sqlite3
+except ImportError:
+    import sqlite3
 
 from src.chunker import Chunk
 from src.config import StorageConfig
