@@ -12,6 +12,7 @@ class EmbeddingConfig:
     model: str = ""
     api_key: str = ""
     api_key_env: str = ""
+    api_key_file: str = ""
     base_url: str = ""
     dimensions: int | None = None
     timeout: float = 60.0
@@ -122,16 +123,20 @@ def _resolve_project_paths(config: Config, base_dir: Path):
 
 
 def _resolve_embedding_paths(config: Config, base_dir: Path):
-    """Resolve model_dir while keeping project configs portable across machines."""
+    """Resolve embedding paths while keeping project configs portable across machines."""
     value = config.embedding.model_dir
     if value == "auto":
         env_dir = os.environ.get("EM_RAG_MODEL_DIR")
         config.embedding.model_dir = (
             str(Path(env_dir).expanduser().resolve()) if env_dir else str(default_model_dir())
         )
-        return
-
-    config.embedding.model_dir = _resolve_path(value, base_dir)
+    else:
+        config.embedding.model_dir = _resolve_path(value, base_dir)
+    if config.embedding.api_key_file:
+        config.embedding.api_key_file = _resolve_path(
+            config.embedding.api_key_file,
+            base_dir,
+        )
 
 
 def default_model_dir() -> Path:

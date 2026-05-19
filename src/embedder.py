@@ -30,6 +30,38 @@ def embedding_batch_size(config: EmbeddingConfig) -> int:
     return 64
 
 
+def resolve_api_key_with_source(
+    config: EmbeddingConfig,
+    default_env: str = "",
+    ignore_file_errors: bool = False,
+) -> tuple[str, str]:
+    if config.api_key:
+        return config.api_key, "inline"
+    if config.api_key_file:
+        key_path = Path(config.api_key_file).expanduser()
+        try:
+            value = key_path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            if ignore_file_errors:
+                return "", "file"
+            raise ValueError(f"embedding api_key_file 无法读取: {key_path}") from exc
+        if value:
+            return value, "file"
+        if ignore_file_errors:
+            return "", "file"
+        raise ValueError(f"embedding api_key_file 为空: {key_path}")
+    env_name = config.api_key_env or default_env
+    if env_name:
+        value = os.environ.get(env_name, "")
+        if value:
+            return value, f"env:{env_name}"
+    return "", ""
+
+
+def resolve_api_key(config: EmbeddingConfig, default_env: str = "") -> str:
+    return resolve_api_key_with_source(config, default_env)[0]
+
+
 class ONNXEmbedder:
     """本地 ONNX Runtime embedding"""
 
@@ -213,16 +245,13 @@ def create_embedder(config: EmbeddingConfig) -> EmbedderProtocol:
     if config.provider == "local":
         return ONNXEmbedder(config.local_model, config.model_dir)
     elif config.provider == "openai":
-        api_key = config.openai_api_key or config.api_key or os.environ.get(
-            config.api_key_env or "OPENAI_API_KEY",
-            "",
-        )
+        api_key = config.openai_api_key or resolve_api_key(config, "OPENAI_API_KEY")
         model = config.openai_model if not config.model else config.model
         if not api_key:
             raise ValueError("openai_api_key 未配置")
         return OpenAIEmbedder(api_key, model)
     elif config.provider in ("openai_compatible", "glm"):
-        api_key = config.api_key or os.environ.get(config.api_key_env, "")
+        api_key = resolve_api_key(config)
         if config.provider == "glm":
             api_key = api_key or os.environ.get("ZHIPU_API_KEY", "")
             base_url = config.base_url or "https://open.bigmodel.cn/api/paas/v4"

@@ -19,7 +19,8 @@ _embedder = None
 _vector_store = None
 _fts_store = None
 _retriever = None
-_initialized = False
+_stores_initialized = False
+_pipeline_initialized = False
 _config_path = "config.yaml"
 _project_root = Path.cwd()
 
@@ -33,29 +34,40 @@ def configure(config_path: str = "config.yaml", project_root: str = None):
         _project_root = Path(config_path).expanduser().resolve().parent
 
 
-def _ensure_init():
-    global _config, _classifier, _chunker, _embedder
-    global _vector_store, _fts_store, _retriever, _initialized
+def _ensure_stores():
+    global _config, _vector_store, _fts_store, _stores_initialized
 
-    if _initialized:
+    if _stores_initialized:
         return
 
     from src.config import load_config
-    from src.parsers import create_parser
+    from src.store import VectorStore, FTSStore
+
+    _config = load_config(_config_path)
+    _vector_store = VectorStore(_config.storage)
+    _fts_store = FTSStore(_config.storage)
+    _stores_initialized = True
+
+
+def _ensure_pipeline():
+    global _config, _classifier, _chunker, _embedder
+    global _vector_store, _fts_store, _retriever, _pipeline_initialized
+
+    if _pipeline_initialized:
+        return
+
+    _ensure_stores()
+
     from src.element_classifier import ElementClassifier
     from src.chunker import Chunker
     from src.embedder import create_embedder
-    from src.store import VectorStore, FTSStore
     from src.retriever import Retriever
 
-    _config = load_config(_config_path)
     _classifier = ElementClassifier()
     _chunker = Chunker(_config.chunking)
     _embedder = create_embedder(_config.embedding)
-    _vector_store = VectorStore(_config.storage)
-    _fts_store = FTSStore(_config.storage)
     _retriever = Retriever(_config.retrieval, _embedder, _vector_store, _fts_store)
-    _initialized = True
+    _pipeline_initialized = True
 
 
 @app.list_tools()
@@ -135,7 +147,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 async def _handle_search(args: dict) -> list[TextContent]:
-    _ensure_init()
+    _ensure_pipeline()
     query = args["query"]
     top_k = args.get("top_k", 5)
     doc_filter = args.get("doc_filter")
@@ -177,7 +189,7 @@ async def _handle_search(args: dict) -> list[TextContent]:
 
 
 async def _handle_list() -> list[TextContent]:
-    _ensure_init()
+    _ensure_stores()
     docs = _vector_store.list_docs()
     if not docs:
         return [TextContent(type="text", text="暂无已索引文档。")]
@@ -185,7 +197,7 @@ async def _handle_list() -> list[TextContent]:
 
 
 async def _handle_index(args: dict) -> list[TextContent]:
-    _ensure_init()
+    _ensure_pipeline()
     path = args["path"]
     is_url = path.startswith(("http://", "https://"))
     resolved_path = path if is_url else _resolve_doc_path(path)
@@ -226,7 +238,7 @@ async def _handle_index(args: dict) -> list[TextContent]:
 
 
 async def _handle_remove(args: dict) -> list[TextContent]:
-    _ensure_init()
+    _ensure_stores()
     doc_id = args["doc_id"]
     _vector_store.remove_doc(doc_id)
     _fts_store.remove_doc(doc_id)

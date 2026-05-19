@@ -327,6 +327,8 @@ retrieval:
 embedding:
   provider: "glm"
   api_key_env: "ZHIPU_API_KEY"
+  # 如果 MCP 客户端无法继承环境变量，可改用 api_key_file。
+  # api_key_file: "zhipu_api_key"
   model: "embedding-3"
   dimensions: 1024
   batch_size: 16
@@ -343,6 +345,23 @@ Windows PowerShell:
 
 ```powershell
 $env:ZHIPU_API_KEY = "your-api-key"
+```
+
+如果希望 shell 和 MCP 始终使用同一份 key，或 LLM 客户端启动的 MCP 进程
+无法读取 shell 里的环境变量，可以把 key 写入项目本地文件，并在配置中引用。
+配置了 `api_key_file` 后，它会优先于环境变量。注意不要提交这个文件：
+
+```bash
+printf '%s\n' "your-api-key" > .em_rag/zhipu_api_key
+chmod 600 .em_rag/zhipu_api_key
+printf '%s\n' "zhipu_api_key" >> .em_rag/.gitignore
+```
+
+```yaml
+embedding:
+  provider: "glm"
+  api_key_file: "zhipu_api_key"
+  model: "embedding-3"
 ```
 
 `glm` 是 `openai_compatible` 的便捷别名，默认使用

@@ -4,7 +4,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.config import EmbeddingConfig
-from src.embedder import create_embedder, embedding_batch_size
+from src.embedder import (
+    create_embedder,
+    embedding_batch_size,
+    resolve_api_key_with_source,
+)
 
 
 def test_glm_default_batch_size_is_conservative():
@@ -69,6 +73,45 @@ def test_openai_compatible_requires_base_url():
         assert "base_url" in str(exc)
     else:
         raise AssertionError("missing base_url should fail")
+
+
+def test_embedding_api_key_file(tmp_path):
+    key_path = tmp_path / "api_key"
+    key_path.write_text("file-key\n", encoding="utf-8")
+
+    embedder = create_embedder(EmbeddingConfig(
+        provider="openai_compatible",
+        api_key_file=str(key_path),
+        base_url="https://example.com/v1",
+        model="embedding-3",
+    ))
+
+    assert embedder.api_key == "file-key"
+
+
+def test_embedding_api_key_file_takes_precedence_over_env(tmp_path, monkeypatch):
+    key_path = tmp_path / "api_key"
+    key_path.write_text("file-key\n", encoding="utf-8")
+    monkeypatch.setenv("ZHIPU_API_KEY", "env-key")
+
+    key, source = resolve_api_key_with_source(EmbeddingConfig(
+        provider="glm",
+        api_key_env="ZHIPU_API_KEY",
+        api_key_file=str(key_path),
+    ))
+
+    assert key == "file-key"
+    assert source == "file"
+
+
+def test_embedding_api_key_file_missing_can_be_ignored(tmp_path):
+    key, source = resolve_api_key_with_source(
+        EmbeddingConfig(api_key_file=str(tmp_path / "missing")),
+        ignore_file_errors=True,
+    )
+
+    assert key == ""
+    assert source == "file"
 
 
 def test_embedding_http_400_includes_response_body(monkeypatch):

@@ -218,6 +218,7 @@ def test_cmd_doctor_checks_online_embedding_api_key(tmp_path, capsys):
         openai_api_key = ""
         api_key = ""
         api_key_env = "ZHIPU_API_KEY"
+        api_key_file = ""
 
     class Config:
         storage = Storage()

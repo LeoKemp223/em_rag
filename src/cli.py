@@ -420,14 +420,25 @@ def cmd_doctor(args, config):
         ("sqlite.fts5", info["fts5"]),
     ]
     if online_embedding:
+        from src.embedder import resolve_api_key_with_source
+
         default_api_key_env = "OPENAI_API_KEY" if embedding.provider == "openai" else ""
-        api_key = (
-            embedding.openai_api_key
-            or embedding.api_key
-            or os.environ.get(embedding.api_key_env or default_api_key_env, "")
-            or (os.environ.get("ZHIPU_API_KEY", "") if embedding.provider == "glm" else "")
-        )
-        checks.append(("embedding.api_key", bool(api_key)))
+        if embedding.openai_api_key:
+            api_key, api_key_source = embedding.openai_api_key, "openai_api_key"
+        else:
+            api_key, api_key_source = resolve_api_key_with_source(
+                embedding,
+                default_api_key_env,
+                ignore_file_errors=True,
+            )
+        if embedding.provider == "glm":
+            zhipu_key = os.environ.get("ZHIPU_API_KEY", "")
+            if not api_key and zhipu_key:
+                api_key, api_key_source = zhipu_key, "env:ZHIPU_API_KEY"
+        label = "embedding.api_key"
+        if api_key_source:
+            label = f"{label} ({api_key_source})"
+        checks.append((label, bool(api_key)))
     else:
         model_dir = Path(embedding.model_dir) / embedding.local_model
         checks.extend([

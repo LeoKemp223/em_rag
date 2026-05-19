@@ -61,6 +61,7 @@ def test_load_config_accepts_glm_embedding_config(tmp_path):
 embedding:
   provider: "glm"
   api_key_env: "ZHIPU_API_KEY"
+  api_key_file: "zhipu_api_key"
   model: "embedding-3"
   dimensions: 1024
 """,
@@ -71,5 +72,6 @@ embedding:
 
     assert config.embedding.provider == "glm"
     assert config.embedding.api_key_env == "ZHIPU_API_KEY"
+    assert config.embedding.api_key_file == str((tmp_path / "zhipu_api_key").resolve())
     assert config.embedding.model == "embedding-3"
     assert config.embedding.dimensions == 1024
