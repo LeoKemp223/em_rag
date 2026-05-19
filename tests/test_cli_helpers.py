@@ -156,3 +156,36 @@ def test_index_path_skips_empty_chunks(tmp_path, monkeypatch, capsys):
     assert doc_id == "empty"
     assert chunks == 0
     assert "跳过: 未生成可索引内容" in capsys.readouterr().out
+
+
+def test_cmd_doctor_prints_platform_and_sqlite_info(tmp_path, capsys):
+    config_path = tmp_path / ".em_rag" / "config.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("storage:\n  chroma_path: chroma_db\n", encoding="utf-8")
+
+    class Storage:
+        chroma_path = str(tmp_path / "chroma_db")
+        fts_path = str(tmp_path / "fts.db")
+
+    class Figures:
+        output_dir = str(tmp_path / "figures")
+
+    class Embedding:
+        model_dir = str(tmp_path / "models")
+        local_model = "all-MiniLM-L6-v2"
+
+    class Config:
+        storage = Storage()
+        figures = Figures()
+        embedding = Embedding()
+
+    class Args:
+        config = str(config_path)
+
+    cli.cmd_doctor(Args(), Config())
+
+    output = capsys.readouterr().out
+    assert "platform:" in output
+    assert "python:" in output
+    assert "sqlite:" in output
+    assert "sqlite.fts5:" in output

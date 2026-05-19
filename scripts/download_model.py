@@ -1,8 +1,9 @@
 """下载 ONNX embedding 模型"""
 
+import shutil
 import sys
 from pathlib import Path
-from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub import hf_hub_download
 
 
 MODELS = {
@@ -43,8 +44,8 @@ def download_model(model_name: str, model_dir: str = "./models"):
             dst = target_dir / filename.replace("onnx/", "")
             if src != dst:
                 dst.parent.mkdir(parents=True, exist_ok=True)
-                src.rename(dst)
-                print(f"    → {dst}")
+                shutil.copy2(src, dst)
+                print(f"    -> {dst}")
 
     print(f"\n模型下载完成: {target_dir}")
     print("文件列表:")

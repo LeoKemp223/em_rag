@@ -85,12 +85,30 @@ em_rag/
 需要 Python 3.11 或更高版本。下面命令里的 `python` 应指向 Python 3.11+；
 如果系统默认版本较旧，请改用 `python3.11`。
 
+Linux / macOS:
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 python scripts/download_model.py
+```
+
+Windows PowerShell:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install -e .
+python scripts\download_model.py
+```
+
+Windows 如果提示脚本执行策略限制，可先在当前 PowerShell 会话执行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 ## 快速体验
@@ -191,6 +209,20 @@ em_rag 是标准的 MCP Server，兼容所有支持 MCP 协议的客户端。
       "command": "/path/to/em_rag/.venv/bin/python",
       "args": ["-m", "em_rag.mcp_auto"],
       "cwd": "/path/to/your-project"
+    }
+  }
+}
+```
+
+Windows 示例：
+
+```json
+{
+  "mcpServers": {
+    "em-rag": {
+      "command": "C:\\path\\to\\em_rag\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "em_rag.mcp_auto"],
+      "cwd": "C:\\path\\to\\your-project"
     }
   }
 }
@@ -301,6 +333,8 @@ python -m em_rag add ./docs
 
 在新电脑上先安装一次 `em_rag` 并下载模型：
 
+Linux / macOS:
+
 ```bash
 git clone <em_rag_repo>
 cd em_rag
@@ -309,6 +343,18 @@ python -m venv .venv
 pip install -r requirements.txt
 pip install -e .
 python scripts/download_model.py
+```
+
+Windows PowerShell:
+
+```powershell
+git clone <em_rag_repo>
+cd em_rag
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install -e .
+python scripts\download_model.py
 ```
 
 然后进入业务工程修复本地配置：
@@ -325,6 +371,30 @@ python -m em_rag doctor
 ```bash
 export EM_RAG_MODEL_DIR=/path/to/models
 ```
+
+Windows PowerShell:
+
+```powershell
+$env:EM_RAG_MODEL_DIR = "C:\path\to\models"
+```
+
+### Windows 支持状态
+
+核心 CLI、MCP stdio、项目配置、Chroma 持久化、SQLite FTS、ONNX embedding、
+Markdown / 文本 / 代码 / DOCX / EPUB 解析都按跨平台路径实现，Windows 下应可使用。
+
+需要注意的模块：
+
+- SQLite：Windows 默认使用 Python 3.11+ 自带 `sqlite3`，不强制安装
+  `pysqlite3-binary`；`doctor` 会检查 `sqlite.fts5`。
+- PDF：依赖 `PyMuPDF` 和 `pdfplumber`，请使用 64-bit Python 3.11+，通常可直接安装 wheel。
+- ChromaDB：依赖本机 SQLite 版本，若 `doctor` 显示 `sqlite.fts5: missing` 或
+  vector store 报错，需要升级 Python 或换用带新版 SQLite 的 Python 发行版。
+- MCP 客户端：Windows 路径必须写成 JSON 转义形式，例如
+  `C:\\path\\to\\.venv\\Scripts\\python.exe`；推荐直接运行
+  `python -m em_rag mcp --force` 自动生成。
+- Shell 命令：README 同时提供 bash 和 PowerShell 写法，Windows 下不要使用
+  `. .venv/bin/activate` 或 `export`。
 
 提供的 MCP 工具：
 - `search_docs` — 搜索已索引文档，支持寄存器名精确查询和语义查询

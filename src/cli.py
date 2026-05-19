@@ -1,6 +1,7 @@
 """CLI 入口：索引文档、查询、管理"""
 
 import argparse
+import platform
 import sys
 import time
 from pathlib import Path
@@ -387,15 +388,22 @@ def _mcp_config_template(project_root: Path, config_path: Path) -> str:
 
 
 def cmd_doctor(args, config):
+    from src.sqlite_compat import sqlite_info
+
+    info = sqlite_info()
     print("em_rag doctor")
+    print(f"  platform: {platform.system()} {platform.release()}")
+    print(f"  python:   {sys.executable}")
     print(f"  config: {Path(args.config).expanduser().resolve()}")
     print(f"  chroma: {config.storage.chroma_path}")
     print(f"  fts:    {config.storage.fts_path}")
     print(f"  figs:   {config.figures.output_dir}")
     print(f"  model:  {Path(config.embedding.model_dir) / config.embedding.local_model}")
+    print(f"  sqlite: {info['version']} ({info['module']})")
 
     checks = [
         ("config", Path(args.config).exists()),
+        ("sqlite.fts5", info["fts5"]),
         ("model.onnx", (Path(config.embedding.model_dir) / config.embedding.local_model / "model.onnx").exists()),
         ("tokenizer.json", (Path(config.embedding.model_dir) / config.embedding.local_model / "tokenizer.json").exists()),
     ]
