@@ -171,8 +171,15 @@ def test_cmd_doctor_prints_platform_and_sqlite_info(tmp_path, capsys):
         output_dir = str(tmp_path / "figures")
 
     class Embedding:
+        provider = "local"
         model_dir = str(tmp_path / "models")
         local_model = "all-MiniLM-L6-v2"
+        openai_api_key = ""
+        api_key = ""
+        api_key_env = ""
+        openai_model = ""
+        model = ""
+        base_url = ""
 
     class Config:
         storage = Storage()
@@ -189,3 +196,40 @@ def test_cmd_doctor_prints_platform_and_sqlite_info(tmp_path, capsys):
     assert "python:" in output
     assert "sqlite:" in output
     assert "sqlite.fts5:" in output
+
+
+def test_cmd_doctor_checks_online_embedding_api_key(tmp_path, capsys):
+    config_path = tmp_path / ".em_rag" / "config.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("embedding:\n  provider: glm\n", encoding="utf-8")
+
+    class Storage:
+        chroma_path = str(tmp_path / "chroma_db")
+        fts_path = str(tmp_path / "fts.db")
+
+    class Figures:
+        output_dir = str(tmp_path / "figures")
+
+    class Embedding:
+        provider = "glm"
+        model = "embedding-3"
+        openai_model = ""
+        base_url = "https://open.bigmodel.cn/api/paas/v4"
+        openai_api_key = ""
+        api_key = ""
+        api_key_env = "ZHIPU_API_KEY"
+
+    class Config:
+        storage = Storage()
+        figures = Figures()
+        embedding = Embedding()
+
+    class Args:
+        config = str(config_path)
+
+    cli.cmd_doctor(Args(), Config())
+
+    output = capsys.readouterr().out
+    assert "embedding: glm (embedding-3)" in output
+    assert "embedding.api_key:" in output
+    assert "model.onnx" not in output

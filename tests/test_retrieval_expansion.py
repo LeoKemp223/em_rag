@@ -138,6 +138,44 @@ def test_chinese_query_aliases_match_english_semantic_hints(tmp_path):
     store.close()
 
 
+def test_reindex_removes_stale_fts_chunks_for_doc(tmp_path):
+    store = FTSStore(StorageConfig(fts_path=str(tmp_path / "fts.db")))
+    store.add_chunks(
+        [
+            Chunk(
+                content="old first chunk SPI_CR1",
+                context_chain="SPI",
+                element_type="text",
+                page=0,
+            ),
+            Chunk(
+                content="old stale chunk SHOULD_NOT_REMAIN",
+                context_chain="SPI",
+                element_type="text",
+                page=1,
+            ),
+        ],
+        "spi_doc",
+    )
+
+    store.remove_doc("spi_doc")
+    store.add_chunks(
+        [
+            Chunk(
+                content="new only chunk SPI_CR1",
+                context_chain="SPI",
+                element_type="text",
+                page=0,
+            )
+        ],
+        "spi_doc",
+    )
+
+    assert store.search(["SPI_CR1"], top_k=5, doc_filter="spi_doc")
+    assert not store.search(["SHOULD_NOT_REMAIN"], top_k=5, doc_filter="spi_doc")
+    store.close()
+
+
 def test_retriever_extracts_timing_keywords():
     retriever = Retriever(
         RetrievalConfig(),

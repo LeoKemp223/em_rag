@@ -1,10 +1,17 @@
 # config.yaml
 embedding:
-  provider: "local"                              # "local" | "openai"
+  provider: "local"                              # "local" | "openai" | "openai_compatible" | "glm"
   local_model: "all-MiniLM-L6-v2"                # ONNX 格式
   model_dir: "auto"
   # openai_api_key: ""
   # openai_model: "text-embedding-3-small"
+  # GLM / ZhipuAI online embedding:
+  # provider: "glm"
+  # api_key_env: "ZHIPU_API_KEY"
+  # model: "embedding-3"
+  # dimensions: 1024
+  # batch_size: 16
+  # max_retries: 3
 
 parsing:
   table_strategy: "pdfplumber"

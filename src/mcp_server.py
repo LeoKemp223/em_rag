@@ -206,9 +206,16 @@ async def _handle_index(args: dict) -> list[TextContent]:
     elements = _classifier.classify(elements)
     chunks = _chunker.chunk(elements)
 
-    texts = [c.retrieval_text for c in chunks]
-    embeddings = _embedder.embed(texts)
+    from src.embedder import embedding_batch_size
 
+    texts = [c.retrieval_text for c in chunks]
+    embeddings = []
+    batch_size = embedding_batch_size(_config.embedding)
+    for i in range(0, len(texts), batch_size):
+        embeddings.extend(_embedder.embed(texts[i:i + batch_size]))
+
+    _vector_store.remove_doc(doc_id)
+    _fts_store.remove_doc(doc_id)
     _vector_store.add_chunks(chunks, embeddings, doc_id)
     _fts_store.add_chunks(chunks, doc_id)
 

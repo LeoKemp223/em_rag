@@ -1,6 +1,7 @@
 """CLI 入口：索引文档、查询、管理"""
 
 import argparse
+import os
 import platform
 import sys
 import time
@@ -25,7 +26,7 @@ def index_path(path: str, config) -> tuple[str, int]:
     from src.parsers import create_parser
     from src.element_classifier import ElementClassifier
     from src.chunker import Chunker
-    from src.embedder import create_embedder
+    from src.embedder import create_embedder, embedding_batch_size
     from src.store import VectorStore, FTSStore
 
     is_url = path.startswith(("http://", "https://"))
@@ -70,8 +71,8 @@ def index_path(path: str, config) -> tuple[str, int]:
     print("  [4/5] Embedding...")
     embedder = create_embedder(config.embedding)
     texts = [c.retrieval_text for c in chunks]
-    # 分批处理，避免内存溢出
-    batch_size = 64
+    # 分批处理，避免内存溢出和在线 embedding provider 的批量限制。
+    batch_size = embedding_batch_size(config.embedding)
     embeddings = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
@@ -81,9 +82,11 @@ def index_path(path: str, config) -> tuple[str, int]:
 
     print("  [5/5] 存储...")
     vector_store = VectorStore(config.storage)
+    vector_store.remove_doc(doc_id)
     vector_store.add_chunks(chunks, embeddings, doc_id)
 
     fts_store = FTSStore(config.storage)
+    fts_store.remove_doc(doc_id)
     fts_store.add_chunks(chunks, doc_id)
     fts_store.close()
 
@@ -391,6 +394,8 @@ def cmd_doctor(args, config):
     from src.sqlite_compat import sqlite_info
 
     info = sqlite_info()
+    embedding = config.embedding
+    online_embedding = embedding.provider in ("openai", "openai_compatible", "glm")
     print("em_rag doctor")
     print(f"  platform: {platform.system()} {platform.release()}")
     print(f"  python:   {sys.executable}")
@@ -398,15 +403,37 @@ def cmd_doctor(args, config):
     print(f"  chroma: {config.storage.chroma_path}")
     print(f"  fts:    {config.storage.fts_path}")
     print(f"  figs:   {config.figures.output_dir}")
-    print(f"  model:  {Path(config.embedding.model_dir) / config.embedding.local_model}")
+    if online_embedding:
+        if embedding.provider == "glm":
+            model = embedding.model or "embedding-3"
+        else:
+            model = embedding.model or embedding.openai_model
+        print(f"  embedding: {embedding.provider} ({model})")
+        if embedding.base_url:
+            print(f"  embedding base_url: {embedding.base_url}")
+    else:
+        print(f"  model:  {Path(embedding.model_dir) / embedding.local_model}")
     print(f"  sqlite: {info['version']} ({info['module']})")
 
     checks = [
         ("config", Path(args.config).exists()),
         ("sqlite.fts5", info["fts5"]),
-        ("model.onnx", (Path(config.embedding.model_dir) / config.embedding.local_model / "model.onnx").exists()),
-        ("tokenizer.json", (Path(config.embedding.model_dir) / config.embedding.local_model / "tokenizer.json").exists()),
     ]
+    if online_embedding:
+        default_api_key_env = "OPENAI_API_KEY" if embedding.provider == "openai" else ""
+        api_key = (
+            embedding.openai_api_key
+            or embedding.api_key
+            or os.environ.get(embedding.api_key_env or default_api_key_env, "")
+            or (os.environ.get("ZHIPU_API_KEY", "") if embedding.provider == "glm" else "")
+        )
+        checks.append(("embedding.api_key", bool(api_key)))
+    else:
+        model_dir = Path(embedding.model_dir) / embedding.local_model
+        checks.extend([
+            ("model.onnx", (model_dir / "model.onnx").exists()),
+            ("tokenizer.json", (model_dir / "tokenizer.json").exists()),
+        ])
     for name, ok in checks:
         print(f"  {name}: {'ok' if ok else 'missing'}")
 

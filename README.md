@@ -182,6 +182,8 @@ your-project/
 
 然后重启支持 MCP 的 LLM 客户端即可。`add` 可以接收单个文件、URL 或目录；
 传目录时会递归索引支持的文档格式。
+重复索引同一个文档时，会先删除同 `doc_id` 的旧向量和全文索引，再写入新结果，
+避免 chunk 数量变化后残留旧内容。
 
 如果需要覆盖已存在配置：
 
@@ -319,6 +321,51 @@ retrieval:
   context_expand: true
 ```
 
+如果希望使用智谱 GLM 在线 embedding，可改为：
+
+```yaml
+embedding:
+  provider: "glm"
+  api_key_env: "ZHIPU_API_KEY"
+  model: "embedding-3"
+  dimensions: 1024
+  batch_size: 16
+  max_retries: 3
+```
+
+然后设置环境变量：
+
+```bash
+export ZHIPU_API_KEY="your-api-key"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:ZHIPU_API_KEY = "your-api-key"
+```
+
+`glm` 是 `openai_compatible` 的便捷别名，默认使用
+`https://open.bigmodel.cn/api/paas/v4` 和 `embedding-3`。如果使用其他
+OpenAI-compatible embedding 服务，可以显式配置：
+
+```yaml
+embedding:
+  provider: "openai_compatible"
+  api_key_env: "EMBEDDING_API_KEY"
+  base_url: "https://example.com/v1"
+  model: "your-embedding-model"
+```
+
+GLM 默认 `batch_size` 为 16，会自动重试临时网络错误，并在批量请求失败时
+自动拆成更小批次继续请求。若 PDF chunk 过长导致服务端返回 400，可适当降低
+`chunking.max_tokens` 后重新索引。
+如果最终错误里出现 `embedding HTTP 400 for 1 inputs ... preview=...`，说明
+单条文本仍被服务端拒绝，可根据预览定位异常 PDF 文本，或继续降低 chunk 大小。
+
+切换 embedding provider、模型或 `dimensions` 后，已有向量索引不能混用；
+请换新的 `chroma_path` / `fts_path`，或删除旧文档后重新 `add`。
+
 `storage.*`、`figures.output_dir` 和 `documents.source_dir` 的相对路径会按
 配置文件所在目录解析。上例会写入 `your-project/.em_rag/chroma_db`、
 `your-project/.em_rag/fts.db` 和 `your-project/.em_rag/figures`。
@@ -447,7 +494,7 @@ Markdown / 文本 / 代码 / DOCX / EPUB 解析都按跨平台路径实现，Win
 
 ```yaml
 embedding:
-  provider: "local"              # "local" | "openai"
+  provider: "local"              # "local" | "openai" | "openai_compatible" | "glm"
   local_model: "all-MiniLM-L6-v2"
 
 parsing:

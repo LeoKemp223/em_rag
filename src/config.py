@@ -9,6 +9,14 @@ class EmbeddingConfig:
     provider: str = "local"
     local_model: str = "all-MiniLM-L6-v2"
     model_dir: str = "auto"
+    model: str = ""
+    api_key: str = ""
+    api_key_env: str = ""
+    base_url: str = ""
+    dimensions: int | None = None
+    timeout: float = 60.0
+    batch_size: int = 0
+    max_retries: int = 3
     openai_api_key: str = ""
     openai_model: str = "text-embedding-3-small"
 
