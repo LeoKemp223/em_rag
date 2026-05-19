@@ -82,8 +82,7 @@ def load_config(config_path: str = "config.yaml") -> Config:
         _resolve_embedding_paths(config, Path.cwd())
         return config
 
-    with open(path) as f:
-        data = yaml.safe_load(f) or {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
     config = Config()
     if "embedding" in data:

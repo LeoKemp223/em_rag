@@ -129,6 +129,9 @@ SQLite FTS、ONNX embedding，以及 Markdown / 文本 / 代码 / DOCX /
 EPUB 解析。PDF 解析依赖 `PyMuPDF` 和 `pdfplumber`，请使用 64-bit
 Python 3.11+，通常可直接安装 wheel。
 
+配置文件按 UTF-8 读取，可以包含中文注释；建议编辑器保存为 UTF-8。
+`requirements.txt` 保持 ASCII 注释，避免旧版 Windows `pip` 按 GBK 解码时报错。
+
 安装后检查环境：
 
 ```bash
@@ -374,10 +377,10 @@ Linux / macOS:
 ```bash
 git clone <em_rag_repo>
 cd em_rag
-python -m venv .venv
+python3.11 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+python -m pip install -r requirements.txt
+python -m pip install -e .
 python scripts/download_model.py
 ```
 
@@ -388,8 +391,8 @@ git clone <em_rag_repo>
 cd em_rag
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install -e .
+python -m pip install -r requirements.txt
+python -m pip install -e .
 python scripts\download_model.py
 ```
 

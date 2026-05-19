@@ -32,6 +32,22 @@ documents:
     assert config.documents.source_dir == str((rag_dir / "../docs").resolve())
 
 
+def test_load_config_reads_utf8_yaml_comments(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+# 中文注释：Windows 默认 GBK 时也应该按 UTF-8 读取
+storage:
+  chroma_path: "chroma_db"
+""",
+        encoding="utf-8",
+    )
+
+    config = load_config(str(config_path))
+
+    assert config.storage.chroma_path == str((tmp_path / "chroma_db").resolve())
+
+
 def test_load_config_resolves_auto_model_dir_to_installation():
     config = load_config("__missing_config_for_test__.yaml")
 
