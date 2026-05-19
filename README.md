@@ -82,33 +82,69 @@ em_rag/
 
 ## 安装
 
-需要 Python 3.11 或更高版本。下面命令里的 `python` 应指向 Python 3.11+；
-如果系统默认版本较旧，请改用 `python3.11`。
+必须使用 Python 3.11 或更高版本。不要用系统自带的旧版 `python`
+（例如 Python 3.8）创建虚拟环境，否则启动时会因为类型语法和依赖兼容性报错。
+
+建议先确认版本：
+
+```bash
+python3.11 --version
+```
 
 Linux / macOS:
 
 ```bash
-python -m venv .venv
+python3.11 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+python -m pip install -r requirements.txt
+python -m pip install -e .
 python scripts/download_model.py
 ```
+
+如果你的系统里 Python 3.11 命令名就是 `python`，也可以使用
+`python -m venv .venv`；关键是创建虚拟环境的解释器必须是 Python 3.11+。
 
 Windows PowerShell:
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install -e .
+python -m pip install -r requirements.txt
+python -m pip install -e .
 python scripts\download_model.py
 ```
+
+不要直接用 Anaconda base 环境或系统旧版 Python 执行 `pip install`。
+如果 `pip` 路径指向 Anaconda 或 Python 3.8，先按上面命令创建并激活
+Python 3.11 虚拟环境，再使用 `python -m pip ...` 安装。
 
 Windows 如果提示脚本执行策略限制，可先在当前 PowerShell 会话执行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+Windows 平台支持核心功能，包括 CLI、MCP stdio、Chroma 持久化、
+SQLite FTS、ONNX embedding，以及 Markdown / 文本 / 代码 / DOCX /
+EPUB 解析。PDF 解析依赖 `PyMuPDF` 和 `pdfplumber`，请使用 64-bit
+Python 3.11+，通常可直接安装 wheel。
+
+安装后检查环境：
+
+```bash
+python -m em_rag doctor
+```
+
+如果没有激活虚拟环境，也可以显式调用虚拟环境里的 Python：
+
+```bash
+./.venv/bin/python -m em_rag doctor
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m em_rag doctor
 ```
 
 ## 快速体验
