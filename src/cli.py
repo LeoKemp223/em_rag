@@ -48,7 +48,11 @@ def index_path(path: str, config) -> tuple[str, int]:
     t0 = time.time()
 
     print("  [1/5] 解析文档...")
-    parser = create_parser(path, config.figures)
+    parser = create_parser(
+        path,
+        getattr(config, "parsing", None),
+        getattr(config, "figures", None),
+    )
     elements = parser.parse(path)
     print(f"         提取 {len(elements)} 个元素")
 
@@ -352,6 +356,15 @@ def _project_config_template() -> str:
   local_model: "all-MiniLM-L6-v2"
   model_dir: "auto"
 
+parsing:
+  pdf_backend: "pymupdf"
+  table_strategy: "pdfplumber"
+  use_bookmarks: true
+  fallback_to_markdown_headings: true
+  mineru_command: "mineru"
+  mineru_args: []
+  mineru_output_dir: "mineru"
+
 storage:
   chroma_path: "chroma_db"
   fts_path: "fts.db"
@@ -403,6 +416,12 @@ def cmd_doctor(args, config):
     print(f"  chroma: {config.storage.chroma_path}")
     print(f"  fts:    {config.storage.fts_path}")
     print(f"  figs:   {config.figures.output_dir}")
+    parsing = getattr(config, "parsing", None)
+    pdf_backend = getattr(parsing, "pdf_backend", "pymupdf")
+    print(f"  pdf backend: {pdf_backend}")
+    if pdf_backend == "mineru":
+        print(f"  mineru command: {getattr(parsing, 'mineru_command', 'mineru')}")
+        print(f"  mineru output:  {getattr(parsing, 'mineru_output_dir', './data/mineru')}")
     if online_embedding:
         if embedding.provider == "glm":
             model = embedding.model or "embedding-3"

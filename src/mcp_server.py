@@ -213,7 +213,7 @@ async def _handle_index(args: dict) -> list[TextContent]:
         doc_id = Path(resolved_path).stem.lower().replace(" ", "_")
 
     from src.parsers import create_parser
-    parser = create_parser(resolved_path, _config.figures)
+    parser = create_parser(resolved_path, _config.parsing, _config.figures)
     elements = parser.parse(resolved_path)
     elements = _classifier.classify(elements)
     chunks = _chunker.chunk(elements)

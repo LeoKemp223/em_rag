@@ -24,9 +24,13 @@ class EmbeddingConfig:
 
 @dataclass
 class ParsingConfig:
+    pdf_backend: str = "pymupdf"
     table_strategy: str = "pdfplumber"
     use_bookmarks: bool = True
     fallback_to_markdown_headings: bool = True
+    mineru_command: str = "mineru"
+    mineru_args: list[str] = field(default_factory=list)
+    mineru_output_dir: str = "./data/mineru"
 
 
 @dataclass
@@ -116,6 +120,10 @@ def load_config(config_path: str = "config.yaml") -> Config:
 
 def _resolve_project_paths(config: Config, base_dir: Path):
     """Resolve project-local paths relative to the config file directory."""
+    config.parsing.mineru_output_dir = _resolve_path(
+        config.parsing.mineru_output_dir,
+        base_dir,
+    )
     config.storage.chroma_path = _resolve_path(config.storage.chroma_path, base_dir)
     config.storage.fts_path = _resolve_path(config.storage.fts_path, base_dir)
     config.figures.output_dir = _resolve_path(config.figures.output_dir, base_dir)

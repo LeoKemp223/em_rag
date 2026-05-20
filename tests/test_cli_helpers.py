@@ -142,7 +142,10 @@ def test_index_path_skips_empty_chunks(tmp_path, monkeypatch, capsys):
     def fail_create_embedder(config):
         raise AssertionError("embedding should not run for empty chunks")
 
-    monkeypatch.setattr("src.parsers.create_parser", lambda path, figures: EmptyParser())
+    monkeypatch.setattr(
+        "src.parsers.create_parser",
+        lambda path, parsing=None, figures_config=None: EmptyParser(),
+    )
     monkeypatch.setattr("src.element_classifier.ElementClassifier", EmptyClassifier)
     monkeypatch.setattr("src.chunker.Chunker", EmptyChunker)
     monkeypatch.setattr("src.embedder.create_embedder", fail_create_embedder)

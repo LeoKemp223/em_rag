@@ -534,8 +534,11 @@ embedding:
   local_model: "all-MiniLM-L6-v2"
 
 parsing:
+  pdf_backend: "pymupdf"         # "pymupdf" | "mineru"
   table_strategy: "pdfplumber"
   use_bookmarks: true
+  mineru_command: "mineru"       # pdf_backend=mineru 时使用
+  mineru_output_dir: "./data/mineru"
 
 chunking:
   max_tokens: 1000
@@ -577,3 +580,7 @@ retrieval:
 - beautifulsoup4 + lxml — HTML 解析
 - python-docx — Word 文档解析
 - ebooklib — EPUB 电子书解析
+
+可选强解析：
+- MinerU — 复杂 PDF / 扫描件 / 复杂表格的 Markdown 结构化解析。安装 MinerU 后可设置
+  `parsing.pdf_backend: "mineru"` 启用；默认仍使用轻量的 `pymupdf` 后端。

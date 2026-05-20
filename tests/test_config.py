@@ -30,6 +30,25 @@ documents:
     assert config.storage.fts_path == str((rag_dir / "fts.db").resolve())
     assert config.figures.output_dir == str((rag_dir / "figures").resolve())
     assert config.documents.source_dir == str((rag_dir / "../docs").resolve())
+    assert config.parsing.mineru_output_dir == str((rag_dir / "data/mineru").resolve())
+
+
+def test_load_config_accepts_mineru_pdf_backend(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+parsing:
+  pdf_backend: "mineru"
+  mineru_command: "mineru"
+  mineru_output_dir: "mineru-cache"
+""",
+        encoding="utf-8",
+    )
+
+    config = load_config(str(config_path))
+
+    assert config.parsing.pdf_backend == "mineru"
+    assert config.parsing.mineru_output_dir == str((tmp_path / "mineru-cache").resolve())
 
 
 def test_load_config_reads_utf8_yaml_comments(tmp_path):
