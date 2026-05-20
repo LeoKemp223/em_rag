@@ -1,0 +1,13 @@
+---
+description: em_rag agent workflow and MCP tool rules
+alwaysApply: true
+---
+
+Read `AGENTS.md` first. It is the canonical agent workflow for this repository.
+
+- For engineering questions, use `list_docs` when RAG state is unknown, then `search_docs` before answering from datasheets, SDK docs, source files, or board documentation.
+- Do not call `index_doc` unless the user explicitly asks to add, rebuild, refresh, or index documents.
+- Do not call `remove_doc` unless the user explicitly asks to remove a document.
+- Default PDF backend is `pymupdf`; use MinerU only for scanned PDFs, complex layouts, or explicit user requests.
+- Retrieval uses `.em_rag/chroma_db` and `.em_rag/fts.db`; `.em_rag/mineru` and `.em_rag/figures` are generated assets.
+

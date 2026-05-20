@@ -175,6 +175,39 @@ python examples/demo.py
 
 自带示例文档，无需额外文件，演示完整的 解析 → 分类 → 分块 → 向量化 → 存储 → 搜索 流程。
 
+## 可选流程怎么选
+
+默认流程只做本地轻量索引和 MCP 配置，适合大多数新工程先跑起来。下面这些能力需要按场景主动打开：
+
+| 场景 | 推荐流程 | 需要改什么 |
+|------|----------|------------|
+| 新工程先接入 AI 客户端 | 运行 `setup.sh` / `setup.bat`，或 `python -m em_rag init` | 默认不索引，确认文档目录后再运行 `python -m em_rag add ./docs` |
+| 普通 PDF、Markdown、源码文档 | 保持默认 `pymupdf` PDF 后端 | 不需要额外配置 |
+| 扫描件、复杂版式 PDF、表格较多的芯片手册 | 启用 MinerU 强解析 | 安装 MinerU，并设置 `parsing.pdf_backend: "mineru"` |
+| MinerU 表格 OCR 太慢或不稳定 | 仍用 MinerU，但关闭表格解析 | 设置 `mineru_args: ["-b", "pipeline", "-m", "txt", "-l", "ch", "-f", "false", "-t", "false"]` |
+| 希望检索附带时序图/波形图片 | 使用默认 `pymupdf` 后端的 `figures` 提取 | 配置 `figures.enabled: true`，必要时改 `figures.mode` / `figures.detection` |
+| 希望用在线 embedding 提升中文语义召回 | 切换到 GLM 或 OpenAI-compatible embedding | 修改 `embedding.provider` 并重新索引 |
+| 多个业务工程共用一套 em_rag | 每个业务工程保留独立 `.em_rag` | 每个工程分别运行 `python -m em_rag init` 和 `add` |
+| 工程换电脑或路径变了 | 修复本地路径和 MCP 配置 | 运行 `python -m em_rag repair` 后再 `doctor` |
+
+检查当前工程到底启用了哪些流程：
+
+```bash
+python -m em_rag doctor
+```
+
+`doctor` 会显示当前 PDF 后端、MinerU 输出目录、图片目录、索引库路径和已索引文档。
+
+需要区分几个目录的用途：
+
+- `.em_rag/chroma_db` / `.em_rag/fts.db`：真正用于检索的向量索引和全文索引。
+- `.em_rag/mineru`：MinerU 解析 PDF 后生成的 Markdown、图片和 JSON 中间产物；启用 MinerU 后入库内容来自这里。
+- `.em_rag/figures`：默认 PyMuPDF PDF 后端提取的时序图/波形图资产；启用 MinerU 后通常不走这套目录。
+
+给 LLM / Agent 的操作约束见仓库根目录 `AGENTS.md`。同时提供常见客户端入口：
+`CLAUDE.md`、`GEMINI.md` 和 `.cursor/rules/em-rag-agent.mdc`。MCP 工具描述中也写明了：
+普通问答应先 `list_docs` / `search_docs`，只有用户明确要求新增、重建或刷新索引时才调用 `index_doc`。
+
 ## 使用
 
 ### 小白快速接入工程
@@ -324,6 +357,15 @@ embedding:
   local_model: "all-MiniLM-L6-v2"
   model_dir: "auto"
 
+parsing:
+  pdf_backend: "pymupdf"
+  table_strategy: "pdfplumber"
+  use_bookmarks: true
+  fallback_to_markdown_headings: true
+  mineru_command: "mineru"
+  mineru_args: []
+  mineru_output_dir: "mineru"
+
 storage:
   chroma_path: "chroma_db"
   fts_path: "fts.db"
@@ -451,54 +493,6 @@ python -m em_rag add ./docs
 
 全局 Codex MCP 配置不用再改路径。
 
-### 换电脑迁移
-
-在新电脑上先安装一次 `em_rag` 并下载模型：
-
-Linux / macOS:
-
-```bash
-git clone <em_rag_repo>
-cd em_rag
-python3.11 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -e .
-python scripts/download_model.py
-```
-
-Windows PowerShell:
-
-```powershell
-git clone <em_rag_repo>
-cd em_rag
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m pip install -e .
-python scripts\download_model.py
-```
-
-然后进入业务工程修复本地配置：
-
-```bash
-cd /path/to/your-project
-python -m em_rag repair
-python -m em_rag doctor
-```
-
-`repair` 会把旧的绝对 `model_dir` 改成 `auto`，并重新生成便携式
-`.mcp.json`。如果模型放在自定义目录，可以设置环境变量：
-
-```bash
-export EM_RAG_MODEL_DIR=/path/to/models
-```
-
-Windows PowerShell:
-
-```powershell
-$env:EM_RAG_MODEL_DIR = "C:\path\to\models"
-```
 
 ### Windows 支持状态
 

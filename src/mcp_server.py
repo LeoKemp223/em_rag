@@ -75,7 +75,11 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="search_docs",
-            description="搜索已索引的技术文档。支持寄存器名精确查询和语义查询。",
+            description=(
+                "搜索当前工程已索引的嵌入式技术文档。回答芯片、寄存器、"
+                "数据手册、SDK API、源码实现或板级行为问题前应优先调用；"
+                "支持寄存器名精确查询和语义查询。不要用它索引新文件。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -98,12 +102,19 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="list_docs",
-            description="列出所有已索引的文档",
+            description=(
+                "列出当前工程 RAG 中所有已索引文档。若不确定工程是否已有索引，"
+                "或需要 doc_filter 的文档 ID，应先调用此工具。"
+            ),
             inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
             name="index_doc",
-            description="索引新文档到 RAG 系统",
+            description=(
+                "将用户明确指定的文件、目录或 URL 索引到当前工程 RAG。"
+                "只有在用户要求新增、重建、刷新或补充索引时才调用；"
+                "普通问答不要自动触发索引。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -117,7 +128,10 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="remove_doc",
-            description="从索引中移除文档",
+            description=(
+                "从当前工程 RAG 索引中移除指定文档。此操作会删除该文档的"
+                "向量和全文索引；只有在用户明确要求删除时才调用。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
