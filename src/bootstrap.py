@@ -123,7 +123,11 @@ def run_doctor(context: BootstrapContext) -> None:
 
 def prompt_bool(message: str, default: bool = True) -> bool:
     suffix = "[Y/n]" if default else "[y/N]"
-    answer = input(f"{message} {suffix} ").strip().lower()
+    try:
+        answer = input(f"{message} {suffix} ").strip().lower()
+    except EOFError:
+        print()
+        return default
     if not answer:
         return default
     return answer in {"y", "yes", "是", "好", "确认"}

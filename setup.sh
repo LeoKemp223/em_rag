@@ -2,15 +2,16 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-cd "$ROOT_DIR"
+PROJECT_DIR=$(pwd)
 
 if [ -n "${EM_RAG_PYTHON:-}" ]; then
-  exec "$EM_RAG_PYTHON" -m src.bootstrap_launcher "$@"
+  PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" exec "$EM_RAG_PYTHON" -m src.bootstrap_launcher "$@"
 fi
 
 for PYTHON in python3 python3.11 python; do
   if command -v "$PYTHON" >/dev/null 2>&1; then
-    exec "$PYTHON" -m src.bootstrap_launcher "$@"
+    cd "$PROJECT_DIR"
+    PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" exec "$PYTHON" -m src.bootstrap_launcher "$@"
   fi
 done
 
