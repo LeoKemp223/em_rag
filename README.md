@@ -85,6 +85,23 @@ em_rag/
 必须使用 Python 3.11 或更高版本。不要用系统自带的旧版 `python`
 （例如 Python 3.8）创建虚拟环境，否则启动时会因为类型语法和依赖兼容性报错。
 
+新项目推荐直接运行中文交互式启动脚本：
+
+Linux / macOS:
+
+```bash
+./setup.sh
+```
+
+Windows:
+
+```bat
+setup.bat
+```
+
+启动脚本会引导完成虚拟环境、依赖安装、项目配置和 MCP 配置生成。默认不会索引文档；
+完成后按提示再运行 `python -m em_rag add ./docs`。
+
 建议先确认版本：
 
 ```bash
